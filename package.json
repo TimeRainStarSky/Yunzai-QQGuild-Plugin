@@ -1,0 +1,9 @@
+{
+  "name": "QQGuild-Plugin",
+  "type": "module",
+  "author": "TimeRainStarSky",
+  "dependencies": {
+    "formdata-node": "^5.0.0",
+    "qq-guild-bot": "^2.9.5"
+  }
+}
