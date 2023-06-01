@@ -99,15 +99,30 @@ const adapter = new class QQGuildAdapter {
     data.message = []
     data.raw_message = ""
     if (data.content) {
-      const at = data.content.match(/^<@![0-9]+>/)
-      if (at) {
-        const qq = at[0].replace(/^<@!([0-9]+)>/, "$1")
-        data.message.push({ type: "at", qq })
-        data.raw_message += `[提及：${qq}]`
-        data.content = data.content.replace(/^<@![0-9]+>/, "").trim()
+      const match = data.content.match(/<@!.+?>/g)
+      if (match) {
+        let content = data.content
+        for (const i of match) {
+          const msg = content.split(i)
+          const prev_msg = msg.shift()
+          if (prev_msg) {
+            data.message.push({ type: "text", text: prev_msg })
+            data.raw_message += prev_msg
+          }
+          content = msg.join(i)
+
+          const qq = i.replace(/<@!(.+?)>/, "$1")
+          data.message.push({ type: "at", qq })
+          data.raw_message += `[提及：${qq}]`
+        }
+        if (content) {
+          data.message.push({ type: "text", text: content })
+          data.raw_message += content
+        }
+      } else {
+        data.message.push({ type: "text", text: data.content })
+        data.raw_message += data.content
       }
-      data.message.push({ type: "text", text: data.content })
-      data.raw_message += data.content
     }
 
     data.friend = data.bot.pickFriend(data.user_id)
