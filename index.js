@@ -22,6 +22,9 @@ const adapter = new class QQGuildAdapter {
     if (!Array.isArray(msg))
       msg = [msg]
     let message = ""
+    const msgs = []
+    const message_id = []
+    const ret = []
     for (let i of msg) {
       if (typeof i != "object")
         i = { type: "text", data: { text: i } }
@@ -32,7 +35,7 @@ const adapter = new class QQGuildAdapter {
           message += i.data.text
           break
         case "image":
-          await this.sendImage(data, send, i.data.file)
+          ret.push(await this.sendImage(data, send, i.data.file))
           break
         case "face":
           message += `<emoji:${i.data.id}>`
@@ -46,12 +49,25 @@ const adapter = new class QQGuildAdapter {
           else
             message += `<@${i.data.qq}>`
           break
+        case "node":
+          for (const ret of (await this.sendForwardMsg(msg => this.sendMsg(data, send, msg), i.data))) {
+            msgs.push(...ret.data)
+            message_id.push(...ret.message_id)
+          }
+          break
         default:
           message += JSON.stringify(i)
       }
     }
     if (message)
-      return send({ content: message, msg_id: data.message_id })
+      ret.push(await send({ content: message, msg_id: data.message_id }))
+
+    for (const i of ret) {
+      msgs.push(i)
+      if (i?.data?.id)
+        message_id.push(i.data.id)
+    }
+    return { data: msgs, message_id }
   }
 
   sendFriendMsg(data, msg) {
@@ -70,15 +86,20 @@ const adapter = new class QQGuildAdapter {
     }, msg)
   }
 
-  recallMsg(data, message_id, hide) {
-    return data.bot.api.messageApi.deleteMessage(data.channel_id, message_id, hide)
+  async recallMsg(data, message_id, hide) {
+    logger.info(`${logger.blue(`[${data.self_id}]`)} 撤回消息：${message_id}`)
+    if (!Array.isArray(message_id))
+      message_id = [message_id]
+    const msgs = []
+    for (const i of message_id)
+      msgs.push(await data.bot.api.messageApi.deleteMessage(data.channel_id, i, hide))
+    return msgs
   }
 
-  async makeForwardMsg(send, msg) {
+  async sendForwardMsg(send, msg) {
     const messages = []
     for (const i of msg)
       messages.push(await send(i.message))
-    messages.data = "消息"
     return messages
   }
 
@@ -87,7 +108,8 @@ const adapter = new class QQGuildAdapter {
     return {
       sendMsg: msg => this.sendFriendMsg(i, msg),
       recallMsg: (message_id, hide) => this.recallMsg(i, message_id, hide),
-      makeForwardMsg: msg => this.makeForwardMsg(msg => this.sendFriendMsg(i, msg), msg),
+      makeForwardMsg: Bot.makeForwardMsg,
+      sendForwardMsg: msg => this.sendForwardMsg(msg => this.sendFriendMsg(i, msg), msg),
     }
   }
 
@@ -105,7 +127,8 @@ const adapter = new class QQGuildAdapter {
     return {
       sendMsg: msg => this.sendGroupMsg(i, msg),
       recallMsg: (message_id, hide) => this.recallMsg(i, message_id, hide),
-      makeForwardMsg: msg => this.makeForwardMsg(msg => this.sendGroupMsg(i, msg), msg),
+      makeForwardMsg: Bot.makeForwardMsg,
+      sendForwardMsg: msg => this.sendForwardMsg(msg => this.sendGroupMsg(i, msg), msg),
       pickMember: user_id => this.pickMember(id, `${i.guild_id}-${i.channel_id}`, user_id),
     }
   }
