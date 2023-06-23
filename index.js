@@ -82,6 +82,34 @@ const adapter = new class QQGuildAdapter {
     return messages
   }
 
+  pickFriend(id, user_id) {
+    const i = { self_id: id, bot: Bot[id], user_id }
+    return {
+      sendMsg: msg => this.sendFriendMsg(i, msg),
+      recallMsg: (message_id, hide) => this.recallMsg(i, message_id, hide),
+      makeForwardMsg: msg => this.makeForwardMsg(msg => this.sendFriendMsg(i, msg), msg),
+    }
+  }
+
+  pickMember(id, group_id, user_id) {
+    group_id = group_id.split("-")
+    const i = { self_id: id, bot: Bot[id], guild_id: group_id[0], channel_id: group_id[1], user_id }
+    return {
+      ...this.pickFriend(id, user_id),
+    }
+  }
+
+  pickGroup(id, group_id) {
+    group_id = group_id.split("-")
+    const i = { self_id: id, bot: Bot[id], guild_id: group_id[0], channel_id: group_id[1] }
+    return {
+      sendMsg: msg => this.sendGroupMsg(i, msg),
+      recallMsg: (message_id, hide) => this.recallMsg(i, message_id, hide),
+      makeForwardMsg: msg => this.makeForwardMsg(msg => this.sendGroupMsg(i, msg), msg),
+      pickMember: user_id => this.pickMember(id, `${i.guild_id}-${i.channel_id}`, user_id),
+    }
+  }
+
   makeMessage(data) {
     data = {
       ...data,
@@ -220,34 +248,11 @@ const adapter = new class QQGuildAdapter {
     Bot[id].fl = new Map()
     Bot[id].gl = new Map()
 
-    Bot[id].pickFriend = user_id => {
-      const i = { self_id: id, bot: Bot[id], user_id }
-      return {
-        sendMsg: msg => this.sendFriendMsg(i, msg),
-        recallMsg: (message_id, hide) => this.recallMsg(i, message_id, hide),
-        makeForwardMsg: msg => this.makeForwardMsg(msg => this.sendFriendMsg(i, msg), msg),
-      }
-    }
+    Bot[id].pickFriend = user_id => this.pickFriend(id, user_id)
     Bot[id].pickUser = Bot[id].pickFriend
 
-    Bot[id].pickMember = (group_id, user_id) => {
-      group_id = group_id.split("-")
-      const i = { self_id: id, bot: Bot[id], guild_id: group_id[0], channel_id: group_id[1], user_id }
-      return {
-        ...Bot[id].pickFriend(user_id),
-      }
-    }
-
-    Bot[id].pickGroup = group_id => {
-      group_id = group_id.split("-")
-      const i = { self_id: id, bot: Bot[id], guild_id: group_id[0], channel_id: group_id[1] }
-      return {
-        sendMsg: msg => this.sendGroupMsg(i, msg),
-        recallMsg: (message_id, hide) => this.recallMsg(i, message_id, hide),
-        makeForwardMsg: msg => this.makeForwardMsg(msg => this.sendGroupMsg(i, msg), msg),
-        pickMember: user_id => i.bot.pickMember(`${i.guild_id}-${i.channel_id}`, user_id),
-      }
-    }
+    Bot[id].pickMember = (group_id, user_id) => this.pickMember(id, group_id, user_id)
+    Bot[id].pickGroup = group_id => this.pickGroup(id, group_id)
 
     if (Array.isArray(Bot.uin)) {
       if (!Bot.uin.includes(id))
@@ -285,7 +290,7 @@ export class QQGuild extends plugin {
           permission: "master"
         },
         {
-          reg: "^#[Qq]+(频道|[Gg]uild)设置[01]:[01]:[0-9]+:.*$",
+          reg: "^#[Qq]+(频道|[Gg]uild)设置[01]:[01]:[0-9]+:.+$",
           fnc: "Token",
           permission: "master"
         }
