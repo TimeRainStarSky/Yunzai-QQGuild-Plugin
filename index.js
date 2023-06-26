@@ -5,6 +5,11 @@ import { createOpenAPI, createWebsocket } from "qq-guild-bot"
 import { FormData, Blob } from "formdata-node"
 
 const adapter = new class QQGuildAdapter {
+  constructor() {
+    this.id = "QQGuild"
+    this.name = "QQ频道Bot"
+  }
+
   sendImage(data, send, file) {
     logger.info(`${logger.blue(`[${data.self_id}]`)} 发送图片：${file.replace(/^base64:\/\/.*/, "base64://...")}`)
     if (file.match(/^base64:\/\//)) {
@@ -70,16 +75,29 @@ const adapter = new class QQGuildAdapter {
     return { data: msgs, message_id }
   }
 
-  sendFriendMsg(data, msg) {
-    data.isDirect = true
+  async sendFriendMsg(data, msg) {
+    if (!data.guild_id) {
+      if (!data.source_guild_id) {
+        logger.error(`${logger.blue(`[${data.self_id}]`)} 发送好友消息失败：[${data.user_id}] 不存在来源频道信息`)
+        return false
+      }
+
+      data = {
+        ...data,
+        ...(await data.bot.api.directMessageApi.createDirectMessage({
+          source_guild_id: data.source_guild_id,
+          recipient_id: data.user_id,
+        })).data,
+      }
+    }
+
     return this.sendMsg(data, msg => {
-      logger.info(`${logger.blue(`[${data.self_id}]`)} 发送好友消息：[${data.guild_id}] ${JSON.stringify(msg)}`)
+      logger.info(`${logger.blue(`[${data.self_id}]`)} 发送好友消息：[${data.guild_id}, ${data.user_id}] ${JSON.stringify(msg)}`)
       return data.bot.api.directMessageApi.postDirectMessage(data.guild_id, msg)
     }, msg)
   }
 
   sendGroupMsg(data, msg) {
-    data.isDirect = false
     return this.sendMsg(data, msg => {
       logger.info(`${logger.blue(`[${data.self_id}]`)} 发送群消息：[${data.channel_id}] ${JSON.stringify(msg)}`)
       return data.bot.api.messageApi.postMessage(data.channel_id, msg)
@@ -131,8 +149,14 @@ const adapter = new class QQGuildAdapter {
   }
 
   pickFriend(id, user_id) {
-    const i = { self_id: id, bot: Bot[id], user_id }
+    const i = {
+      ...Bot[id].fl.get(user_id),
+      self_id: id,
+      bot: Bot[id],
+      user_id,
+    }
     return {
+      ...i,
       sendMsg: msg => this.sendFriendMsg(i, msg),
       recallMsg: (message_id, hide) => this.recallMsg(i, message_id, hide),
       makeForwardMsg: Bot.makeForwardMsg,
@@ -141,22 +165,37 @@ const adapter = new class QQGuildAdapter {
   }
 
   pickMember(id, group_id, user_id) {
-    group_id = group_id.split("-")
-    const i = { self_id: id, bot: Bot[id], guild_id: group_id[0], channel_id: group_id[1], user_id }
+    const guild_id = group_id.split("-")
+    const i = {
+      ...Bot[id].fl.get(user_id),
+      self_id: id,
+      bot: Bot[id],
+      source_guild_id: guild_id[0],
+      source_channel_id: guild_id[1],
+      user_id,
+    }
     return {
       ...this.pickFriend(id, user_id),
+      ...i,
     }
   }
 
   pickGroup(id, group_id) {
-    group_id = group_id.split("-")
-    const i = { self_id: id, bot: Bot[id], guild_id: group_id[0], channel_id: group_id[1] }
+    const guild_id = group_id.split("-")
+    const i = {
+      ...Bot[id].gl.get(group_id),
+      self_id: id,
+      bot: Bot[id],
+      guild_id: guild_id[0],
+      channel_id: guild_id[1],
+    }
     return {
+      ...i,
       sendMsg: msg => this.sendGroupMsg(i, msg),
       recallMsg: (message_id, hide) => this.recallMsg(i, message_id, hide),
       makeForwardMsg: Bot.makeForwardMsg,
       sendForwardMsg: msg => this.sendForwardMsg(msg => this.sendGroupMsg(i, msg), msg),
-      pickMember: user_id => this.pickMember(id, `${i.guild_id}-${i.channel_id}`, user_id),
+      pickMember: user_id => this.pickMember(id, group_id, user_id),
     }
   }
 
@@ -169,7 +208,6 @@ const adapter = new class QQGuildAdapter {
       nickname: data.author.username,
       avatar: data.author.avatar,
     }
-    data.bot.fl.set(data.user_id, { ...data.author, ...data.sender })
     data.group_id = `${data.guild_id}-${data.channel_id}`
     data.message_id = data.id
 
@@ -209,6 +247,13 @@ const adapter = new class QQGuildAdapter {
   makeFriendMessage(data) {
     data = this.makeMessage(data)
     data.message_type = "private"
+    data.bot.fl.set(data.user_id, {
+      ...data.bot.fl.get(data.user_id),
+      ...data.author,
+      ...data.sender,
+      guild_id: data.guild_id,
+      channel_id: data.channel_id,
+    })
 
     logger.info(`${logger.blue(`[${data.self_id}]`)} 好友消息：[${data.group_id}, ${data.sender.nickname}(${data.user_id})] ${data.raw_message}`)
     data.reply = msg => this.sendFriendMsg(data, msg)
@@ -220,6 +265,13 @@ const adapter = new class QQGuildAdapter {
   makeGroupMessage(data) {
     data = this.makeMessage(data)
     data.message_type = "group"
+    data.bot.fl.set(data.user_id, {
+      ...data.bot.fl.get(data.user_id),
+      ...data.author,
+      ...data.sender,
+      source_guild_id: data.guild_id,
+      source_channel_id: data.channel_id,
+    })
 
     logger.info(`${logger.blue(`[${data.self_id}]`)} 群消息：[${data.group_id}, ${data.sender.nickname}(${data.user_id})] ${data.raw_message}`)
     data.group = data.bot.pickGroup(data.group_id)
@@ -284,7 +336,7 @@ const adapter = new class QQGuildAdapter {
       ...(await bot.api.meApi.me()).data,
     }
     if (!bot.info.id) {
-      logger.error(`${logger.blue(`[${token}]`)} QQ频道Bot 连接失败`)
+      logger.error(`${logger.blue(`[${token}]`)} ${this.name}(${this.id}) 连接失败`)
       return false
     }
 
@@ -293,6 +345,11 @@ const adapter = new class QQGuildAdapter {
     Bot[id].uin = id
     Bot[id].nickname = Bot[id].info.username
     Bot[id].avatar = Bot[id].info.avatar
+    Bot[id].version = {
+      id: this.id,
+      name: this.name,
+      version: config.package.dependencies["qq-guild-bot"],
+    }
     Bot[id].stat = { start_time: Date.now() / 1000 }
     Bot[id].pickFriend = user_id => this.pickFriend(id, user_id)
     Bot[id].pickUser = Bot[id].pickFriend
@@ -307,28 +364,27 @@ const adapter = new class QQGuildAdapter {
     Bot[id].fl = new Map()
     Bot[id].gl = await Bot[id].getGroupMap()
 
-    if (Array.isArray(Bot.uin)) {
-      if (!Bot.uin.includes(id))
-        Bot.uin.push(id)
-    } else {
-      Bot.uin = [id]
-    }
+    if (!Bot.uin.includes(id))
+      Bot.uin.push(id)
 
     Bot[id].ws.on("GUILD_MESSAGES", data => this.message(Bot[id], data))
     Bot[id].ws.on("DIRECT_MESSAGE", data => this.message(Bot[id], data))
     Bot[id].ws.on("PUBLIC_GUILD_MESSAGES", data => this.message(Bot[id], data))
 
-    logger.mark(`${logger.blue(`[${id}]`)} QQ频道Bot 已连接`)
+    logger.mark(`${logger.blue(`[${id}]`)} ${this.name}(${this.id}) 已连接`)
     Bot.emit(`connect.${id}`, Bot[id])
     Bot.emit(`connect`, Bot[id])
     return true
   }
+
+  async load() {
+    for (const token of config.token)
+      await adapter.connect(token)
+    return true
+  }
 }
 
-Bot.once("online", async () => {
-  for (const token of config.token)
-    await adapter.connect(token)
-})
+Bot.adapter.push(adapter)
 
 export class QQGuild extends plugin {
   constructor() {
