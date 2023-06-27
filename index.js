@@ -148,6 +148,35 @@ const adapter = new class QQGuildAdapter {
     return map
   }
 
+  getFriendInfo(data) {
+    if (data.source_guild_id)
+      return this.getMemberInfo(data)
+    return data
+  }
+
+  async getMemberInfo(data) {
+    const info = (await data.bot.api.guildApi.guildMember(data.source_guild_id, data.user_id)).data
+    return {
+      ...data,
+      ...info,
+      user_id: info.user.id,
+      nickname: info.nick,
+      avatar: info.user.avatar,
+    }
+  }
+
+  async getGroupInfo(data) {
+    const guild = (await data.bot.api.guildApi.guild(data.guild_id)).data
+    const channel = (await data.bot.api.channelApi.channel(data.channel_id)).data
+    return {
+      ...data,
+      ...guild,
+      ...channel,
+      group_id: `${guild.id}-${channel.id}`,
+      group_name: `${guild.name}-${channel.name}`,
+    }
+  }
+
   pickFriend(id, user_id) {
     const i = {
       ...Bot[id].fl.get(user_id),
@@ -161,6 +190,8 @@ const adapter = new class QQGuildAdapter {
       recallMsg: (message_id, hide) => this.recallMsg(i, message_id, hide),
       makeForwardMsg: Bot.makeForwardMsg,
       sendForwardMsg: msg => this.sendForwardMsg(msg => this.sendFriendMsg(i, msg), msg),
+      getInfo: () => this.getFriendInfo(i),
+      getAvatarUrl: async () => (await this.getFriendInfo(i)).avatar,
     }
   }
 
@@ -177,6 +208,8 @@ const adapter = new class QQGuildAdapter {
     return {
       ...this.pickFriend(id, user_id),
       ...i,
+      getInfo: () => this.getMemberInfo(i),
+      getAvatarUrl: async () => (await this.getMemberInfo(i)).avatar,
     }
   }
 
@@ -196,6 +229,7 @@ const adapter = new class QQGuildAdapter {
       makeForwardMsg: Bot.makeForwardMsg,
       sendForwardMsg: msg => this.sendForwardMsg(msg => this.sendGroupMsg(i, msg), msg),
       pickMember: user_id => this.pickMember(id, group_id, user_id),
+      getInfo: () => this.getGroupInfo(i),
     }
   }
 
@@ -240,7 +274,6 @@ const adapter = new class QQGuildAdapter {
       }
     }
 
-    data.friend = data.bot.pickFriend(data.user_id)
     return data
   }
 
@@ -256,6 +289,7 @@ const adapter = new class QQGuildAdapter {
     })
 
     logger.info(`${logger.blue(`[${data.self_id}]`)} 好友消息：[${data.group_id}, ${data.sender.nickname}(${data.user_id})] ${data.raw_message}`)
+    data.friend = data.bot.pickFriend(data.user_id)
     data.reply = msg => this.sendFriendMsg(data, msg)
 
     Bot.emit(`${data.post_type}.${data.message_type}`, data)
@@ -274,6 +308,7 @@ const adapter = new class QQGuildAdapter {
     })
 
     logger.info(`${logger.blue(`[${data.self_id}]`)} 群消息：[${data.group_id}, ${data.sender.nickname}(${data.user_id})] ${data.raw_message}`)
+    data.friend = data.bot.pickFriend(data.user_id)
     data.group = data.bot.pickGroup(data.group_id)
     data.member = data.group.pickMember(data.user_id)
     data.reply = msg => this.sendGroupMsg(data, msg)
