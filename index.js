@@ -348,13 +348,13 @@ const adapter = new class QQGuildAdapter {
       "GUILD_MEMBERS",
       "GUILD_MESSAGE_REACTIONS",
       "DIRECT_MESSAGE",
-      "OPEN_FORUMS_EVENT",
       "INTERACTION",
       "MESSAGE_AUDIT",
-      "PUBLIC_GUILD_MESSAGES",
     ]
     if (Number(token[1]))
       intents.push("GUILD_MESSAGES", "FORUMS_EVENT")
+    else
+      intents.push("PUBLIC_GUILD_MESSAGES", "OPEN_FORUMS_EVENT")
 
     const bot = {
       appID: token[2],
