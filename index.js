@@ -123,7 +123,7 @@ const adapter = new class QQGuildAdapter {
 
   async getGroupArray(id) {
     const array = []
-    for (const guild of (await Bot[id].api.meApi.meGuilds()).data)
+    for (const guild of (await Bot[id].api.meApi.meGuilds()).data) try {
       for (const channel of (await Bot[id].api.channelApi.channels(guild.id)).data)
         array.push({
           ...guild,
@@ -131,6 +131,9 @@ const adapter = new class QQGuildAdapter {
           group_id: `${guild.id}-${channel.id}`,
           group_name: `${guild.name}-${channel.name}`,
         })
+    } catch (err) {
+      logger.error(`获取频道列表错误：${logger.red(JSON.stringify(err))}`)
+    }
     return array
   }
 
