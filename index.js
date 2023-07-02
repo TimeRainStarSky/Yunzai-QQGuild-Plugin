@@ -52,7 +52,7 @@ const adapter = new class QQGuildAdapter {
           if (i.data.qq == "all")
             message += "@everyone"
           else
-            message += `<@${i.data.qq}>`
+            message += `<@${i.data.qq.replace(/^qg_/, "")}>`
           break
         case "node":
           for (const ret of (await this.sendForwardMsg(msg => this.sendMsg(data, send, msg), i.data))) {
@@ -128,7 +128,7 @@ const adapter = new class QQGuildAdapter {
         array.push({
           ...guild,
           ...channel,
-          group_id: `${guild.id}-${channel.id}`,
+          group_id: `qg_${guild.id}-${channel.id}`,
           group_name: `${guild.name}-${channel.name}`,
         })
     } catch (err) {
@@ -162,7 +162,7 @@ const adapter = new class QQGuildAdapter {
     return {
       ...data,
       ...info,
-      user_id: info.user.id,
+      user_id: `qg_${info.user.id}`,
       nickname: info.nick,
       avatar: info.user.avatar,
     }
@@ -175,7 +175,7 @@ const adapter = new class QQGuildAdapter {
       ...data,
       ...guild,
       ...channel,
-      group_id: `${guild.id}-${channel.id}`,
+      group_id: `qg_${guild.id}-${channel.id}`,
       group_name: `${guild.name}-${channel.name}`,
     }
   }
@@ -185,7 +185,7 @@ const adapter = new class QQGuildAdapter {
       ...Bot[id].fl.get(user_id),
       self_id: id,
       bot: Bot[id],
-      user_id,
+      user_id: user_id.replace(/^qg_/, ""),
     }
     return {
       ...i,
@@ -199,14 +199,14 @@ const adapter = new class QQGuildAdapter {
   }
 
   pickMember(id, group_id, user_id) {
-    const guild_id = group_id.split("-")
+    const guild_id = group_id.replace(/^qg_/, "").split("-")
     const i = {
       ...Bot[id].fl.get(user_id),
       self_id: id,
       bot: Bot[id],
       source_guild_id: guild_id[0],
       source_channel_id: guild_id[1],
-      user_id,
+      user_id: user_id.replace(/^qg_/, ""),
     }
     return {
       ...this.pickFriend(id, user_id),
@@ -217,7 +217,7 @@ const adapter = new class QQGuildAdapter {
   }
 
   pickGroup(id, group_id) {
-    const guild_id = group_id.split("-")
+    const guild_id = group_id.replace(/^qg_/, "").split("-")
     const i = {
       ...Bot[id].gl.get(group_id),
       self_id: id,
@@ -239,13 +239,13 @@ const adapter = new class QQGuildAdapter {
   makeMessage(data) {
     data.post_type = "message"
     data = { ...data, ...data.msg, msg: undefined }
-    data.user_id = data.author.id
+    data.user_id = `qg_${data.author.id}`
     data.sender = {
       user_id: data.user_id,
       nickname: data.author.username,
       avatar: data.author.avatar,
     }
-    data.group_id = `${data.guild_id}-${data.channel_id}`
+    data.group_id = `qg_${data.guild_id}-${data.channel_id}`
     data.message_id = data.id
 
     data.message = []
@@ -263,7 +263,7 @@ const adapter = new class QQGuildAdapter {
           }
           content = msg.join(i)
 
-          const qq = i.replace(/<@!(.+?)>/, "$1")
+          const qq = `qg_${i.replace(/<@!(.+?)>/, "$1")}`
           data.message.push({ type: "at", qq })
           data.raw_message += `[提及：${qq}]`
         }
@@ -320,9 +320,9 @@ const adapter = new class QQGuildAdapter {
     Bot.emit(`${data.post_type}`, data)
   }
 
-  message(bot, data) {
-    data.self_id = bot.uin
-    data.bot = bot
+  message(id, data) {
+    data.self_id = id
+    data.bot = Bot[id]
     switch (data.eventType) {
       case "MESSAGE_CREATE":
         this.makeGroupMessage(data)
@@ -378,7 +378,7 @@ const adapter = new class QQGuildAdapter {
       return false
     }
 
-    const id = bot.info.id
+    const id = `qg_${bot.info.id}`
     Bot[id] = bot
     Bot[id].uin = id
     Bot[id].nickname = Bot[id].info.username
@@ -405,9 +405,9 @@ const adapter = new class QQGuildAdapter {
     if (!Bot.uin.includes(id))
       Bot.uin.push(id)
 
-    Bot[id].ws.on("GUILD_MESSAGES", data => this.message(Bot[id], data))
-    Bot[id].ws.on("DIRECT_MESSAGE", data => this.message(Bot[id], data))
-    Bot[id].ws.on("PUBLIC_GUILD_MESSAGES", data => this.message(Bot[id], data))
+    Bot[id].ws.on("GUILD_MESSAGES", data => this.message(id, data))
+    Bot[id].ws.on("DIRECT_MESSAGE", data => this.message(id, data))
+    Bot[id].ws.on("PUBLIC_GUILD_MESSAGES", data => this.message(id, data))
 
     logger.mark(`${logger.blue(`[${id}]`)} ${this.name}(${this.id}) 已连接`)
     Bot.emit(`connect.${id}`, Bot[id])
