@@ -1,8 +1,8 @@
 logger.info(logger.yellow("- 正在加载 QQ频道 插件"))
 
 import { config, configSave } from "./Model/config.js"
+import { FormData, Blob } from "node-fetch"
 import { createOpenAPI, createWebsocket } from "qq-guild-bot"
-import { FormData, Blob } from "formdata-node"
 
 const adapter = new class QQGuildAdapter {
   constructor() {
