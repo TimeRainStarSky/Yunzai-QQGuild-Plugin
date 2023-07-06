@@ -143,6 +143,33 @@ const adapter = new class QQGuildAdapter {
     return map
   }
 
+  async getMemberArray(data) {
+    const array = []
+    for (const i of (await data.bot.api.guildApi.guildMembers(data.guild_id, { limit: 1000 })).data)
+      array.push({
+        ...i,
+        user_id: `qg_${i.user.id}`,
+        nickname: i.user.username,
+        avatar: i.user.avatar,
+        card: i.nick,
+      })
+    return array
+  }
+
+  async getMemberList(data) {
+    const array = []
+    for (const i of (await this.getMemberArray(data)))
+      array.push(i.user_id)
+    return array
+  }
+
+  async getMemberMap(data) {
+    const map = new Map()
+    for (const i of (await this.getMemberArray(data)))
+      map.set(i.user_id, i)
+    return map
+  }
+
   getFriendInfo(data) {
     if (data.source_guild_id)
       return this.getMemberInfo(data)
@@ -150,13 +177,14 @@ const adapter = new class QQGuildAdapter {
   }
 
   async getMemberInfo(data) {
-    const info = (await data.bot.api.guildApi.guildMember(data.source_guild_id, data.user_id)).data
+    const i = (await data.bot.api.guildApi.guildMember(data.source_guild_id, data.user_id)).data
     return {
       ...data,
-      ...info,
-      user_id: `qg_${info.user.id}`,
-      nickname: info.nick,
-      avatar: info.user.avatar,
+      ...i,
+      user_id: `qg_${i.user.id}`,
+      nickname: i.user.username,
+      avatar: i.user.avatar,
+      card: i.nick,
     }
   }
 
@@ -223,6 +251,9 @@ const adapter = new class QQGuildAdapter {
       recallMsg: (message_id, hide) => this.recallMsg(i, message_id, hide),
       makeForwardMsg: Bot.makeForwardMsg,
       sendForwardMsg: msg => Bot.sendForwardMsg(msg => this.sendGroupMsg(i, msg), msg),
+      getMemberArray: () => this.getMemberArray(i),
+      getMemberList: () => this.getMemberList(i),
+      getMemberMap: () => this.getMemberMap(i),
       pickMember: user_id => this.pickMember(id, group_id, user_id),
       getInfo: () => this.getGroupInfo(i),
     }
