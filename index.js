@@ -18,9 +18,8 @@ const adapter = new class QQGuildAdapter {
         formdata.set("msg_id", data.message_id)
       formdata.set("file_image", new Blob([Buffer.from(file.replace(/^base64:\/\//, ""), "base64")]))
       return send(formdata)
-    } else {
-      return send({ image: file, msg_id: data.message_id })
     }
+    return send({ image: file, msg_id: data.message_id })
   }
 
   async sendMsg(data, send, msg) {
@@ -55,7 +54,7 @@ const adapter = new class QQGuildAdapter {
             message += `<@${i.data.qq.replace(/^qg_/, "")}>`
           break
         case "node":
-          for (const ret of (await this.sendForwardMsg(msg => this.sendMsg(data, send, msg), i.data))) {
+          for (const ret of (await Bot.sendForwardMsg(msg => this.sendMsg(data, send, msg), i.data))) {
             msgs.push(...ret.data)
             message_id.push(...ret.message_id)
           }
@@ -112,13 +111,6 @@ const adapter = new class QQGuildAdapter {
     for (const i of message_id)
       msgs.push(await data.bot.api.messageApi.deleteMessage(data.channel_id, i, hide))
     return msgs
-  }
-
-  async sendForwardMsg(send, msg) {
-    const messages = []
-    for (const i of msg)
-      messages.push(await send(i.message))
-    return messages
   }
 
   async getGroupArray(id) {
@@ -192,7 +184,7 @@ const adapter = new class QQGuildAdapter {
       sendMsg: msg => this.sendFriendMsg(i, msg),
       recallMsg: (message_id, hide) => this.recallMsg(i, message_id, hide),
       makeForwardMsg: Bot.makeForwardMsg,
-      sendForwardMsg: msg => this.sendForwardMsg(msg => this.sendFriendMsg(i, msg), msg),
+      sendForwardMsg: msg => Bot.sendForwardMsg(msg => this.sendFriendMsg(i, msg), msg),
       getInfo: () => this.getFriendInfo(i),
       getAvatarUrl: async () => (await this.getFriendInfo(i)).avatar,
     }
@@ -230,7 +222,7 @@ const adapter = new class QQGuildAdapter {
       sendMsg: msg => this.sendGroupMsg(i, msg),
       recallMsg: (message_id, hide) => this.recallMsg(i, message_id, hide),
       makeForwardMsg: Bot.makeForwardMsg,
-      sendForwardMsg: msg => this.sendForwardMsg(msg => this.sendGroupMsg(i, msg), msg),
+      sendForwardMsg: msg => Bot.sendForwardMsg(msg => this.sendGroupMsg(i, msg), msg),
       pickMember: user_id => this.pickMember(id, group_id, user_id),
       getInfo: () => this.getGroupInfo(i),
     }
@@ -275,6 +267,12 @@ const adapter = new class QQGuildAdapter {
         data.message.push({ type: "text", text: data.content })
         data.raw_message += data.content
       }
+    }
+
+    for (const i of data.attachments || []) {
+      i.type = i.content_type.split("/")[0]
+      data.message.push(i)
+      data.raw_message += JSON.stringify(i)
     }
 
     return data
@@ -380,6 +378,7 @@ const adapter = new class QQGuildAdapter {
 
     const id = `qg_${bot.info.id}`
     Bot[id] = bot
+    Bot[id].adapter = this
     Bot[id].uin = id
     Bot[id].nickname = Bot[id].info.username
     Bot[id].avatar = Bot[id].info.avatar
@@ -434,12 +433,12 @@ export class QQGuild extends plugin {
         {
           reg: "^#[Qq]+(频道|[Gg]uild)账号$",
           fnc: "List",
-          permission: "master"
+          permission: config.permission,
         },
         {
           reg: "^#[Qq]+(频道|[Gg]uild)设置[01]:[01]:[0-9]+:.+$",
           fnc: "Token",
-          permission: "master"
+          permission: config.permission,
         }
       ]
     })
