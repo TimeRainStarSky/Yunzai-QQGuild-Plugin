@@ -273,6 +273,12 @@ const adapter = new class QQGuildAdapter {
 
     data.message = []
     data.raw_message = ""
+
+    if (data.message_reference?.message_id) {
+      data.message.push({ type: "reply", id: data.message_reference.message_id })
+      data.raw_message += `[回复：${data.message_reference.message_id}]`
+    }
+
     if (data.content) {
       const match = data.content.match(/<@!.+?>/g)
       if (match) {
@@ -302,6 +308,8 @@ const adapter = new class QQGuildAdapter {
 
     for (const i of data.attachments || []) {
       i.type = i.content_type.split("/")[0]
+      if (i.url && !i.url.match(/^https?:\/\//))
+        i.url = `http://${i.url}`
       data.message.push(i)
       data.raw_message += JSON.stringify(i)
     }
