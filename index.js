@@ -103,6 +103,12 @@ const adapter = new class QQGuildAdapter {
     }, msg)
   }
 
+  async getMsg(data, message_id) {
+    return this.makeMessage({
+      msg: (await data.bot.api.messageApi.message(data.channel_id, message_id)).data.message
+    })
+  }
+
   async recallMsg(data, message_id, hide) {
     logger.info(`${logger.blue(`[${data.self_id}]`)} 撤回消息：${message_id}`)
     if (!Array.isArray(message_id))
@@ -210,6 +216,7 @@ const adapter = new class QQGuildAdapter {
     return {
       ...i,
       sendMsg: msg => this.sendFriendMsg(i, msg),
+      getMsg: message_id => this.getMsg(i, message_id),
       recallMsg: (message_id, hide) => this.recallMsg(i, message_id, hide),
       makeForwardMsg: Bot.makeForwardMsg,
       sendForwardMsg: msg => Bot.sendForwardMsg(msg => this.sendFriendMsg(i, msg), msg),
@@ -248,6 +255,7 @@ const adapter = new class QQGuildAdapter {
     return {
       ...i,
       sendMsg: msg => this.sendGroupMsg(i, msg),
+      getMsg: message_id => this.getMsg(i, message_id),
       recallMsg: (message_id, hide) => this.recallMsg(i, message_id, hide),
       makeForwardMsg: Bot.makeForwardMsg,
       sendForwardMsg: msg => Bot.sendForwardMsg(msg => this.sendGroupMsg(i, msg), msg),
@@ -260,8 +268,8 @@ const adapter = new class QQGuildAdapter {
   }
 
   makeMessage(data) {
+    data = { ...data, msg: undefined, ...data.msg }
     data.post_type = "message"
-    data = { ...data, ...data.msg, msg: undefined }
     data.user_id = `qg_${data.author.id}`
     data.sender = {
       user_id: data.user_id,
@@ -306,7 +314,7 @@ const adapter = new class QQGuildAdapter {
       }
     }
 
-    for (const i of data.attachments || []) {
+    if (data.attachments) for (const i of data.attachments) {
       i.type = i.content_type.split("/")[0]
       if (i.url && !i.url.match(/^https?:\/\//))
         i.url = `http://${i.url}`
@@ -427,6 +435,7 @@ const adapter = new class QQGuildAdapter {
       version: config.package.dependencies["qq-guild-bot"],
     }
     Bot[id].stat = { start_time: Date.now() / 1000 }
+
     Bot[id].pickFriend = user_id => this.pickFriend(id, user_id)
     Bot[id].pickUser = Bot[id].pickFriend
 
