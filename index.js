@@ -1,4 +1,4 @@
-logger.info(logger.yellow("- 正在加载 QQ频道 插件"))
+logger.info(logger.yellow("- 正在加载 QQ频道 适配器插件"))
 
 import { config, configSave } from "./Model/config.js"
 import { FormData, Blob } from "node-fetch"
@@ -474,8 +474,8 @@ Bot.adapter.push(adapter)
 export class QQGuild extends plugin {
   constructor() {
     super({
-      name: "QQ频道",
-      dsc: "QQ频道",
+      name: "QQGuildAdapter",
+      dsc: "QQ频道 适配器设置",
       event: "message",
       rule: [
         {
@@ -514,4 +514,4 @@ export class QQGuild extends plugin {
   }
 }
 
-logger.info(logger.green("- QQ频道 插件 加载完成"))
+logger.info(logger.green("- QQ频道 适配器插件 加载完成"))
