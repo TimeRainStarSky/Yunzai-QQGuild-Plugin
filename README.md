@@ -16,16 +16,13 @@ TRSS-Yunzai QQ频道 Bot 适配器 插件
 ## 安装教程
 
 1. 准备：[TRSS-Yunzai](../../../Yunzai)
-
-2. 自动安装：`#安装QQGuild-Plugin`
-- 手动安装：[GitHub](https://github.com/TimeRainStarSky/Yunzai-QQGuild-Plugin) 或 [Gitee](https://gitee.com/TimeRainStarSky/Yunzai-QQGuild-Plugin)
-
-```
-git clone --depth 1 https://gitee.com/TimeRainStarSky/Yunzai-QQGuild-Plugin plugins/QQGuild-Plugin
-pnpm i
-```
+2. 输入：`#安装QQGuild-Plugin`
+3. 打开：[QQ 开放平台](https://q.qq.com) 创建 Bot：  
+① 创建机器人  
+② 开发设置 → 得到 `BotAppID:机器人令牌`  
+4. 输入：`#QQ频道设置[01]:[01]:BotAppID:机器人令牌`
 
 ## 使用教程
 
 - #QQ频道账号
-- #QQ频道设置 + `是否沙箱:是否私域:AppID:Token`（是1 否0）
+- #QQ频道设置 + `是否沙箱:是否私域:BotAppID:机器人令牌`（是1 否0）
