@@ -316,6 +316,7 @@ const adapter = new class QQGuildAdapter {
 
     if (data.attachments) for (const i of data.attachments) {
       i.type = i.content_type.split("/")[0]
+      i.file = i.filename
       if (i.url && !i.url.match(/^https?:\/\//))
         i.url = `http://${i.url}`
       data.message.push(i)
