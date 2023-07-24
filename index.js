@@ -10,48 +10,50 @@ const adapter = new class QQGuildAdapter {
     this.name = "QQ频道Bot"
   }
 
-  sendImage(data, send, file) {
+  sendImage(data, send, file, content) {
     logger.info(`${logger.blue(`[${data.self_id}]`)} 发送图片：${file.replace(/^base64:\/\/.*/, "base64://...")}`)
-    if (file.match(/^base64:\/\//)) {
-      const formdata = new FormData()
-      if (data.message_id)
-        formdata.set("msg_id", data.message_id)
-      formdata.set("file_image", new Blob([Buffer.from(file.replace(/^base64:\/\//, ""), "base64")]))
-      return send(formdata)
-    }
-    return send({ image: file, msg_id: data.message_id })
+    if (!file.match(/^base64:\/\//))
+      return send({ content, image: file, msg_id: data.message_id })
+
+    const formdata = new FormData()
+    if (data.message_id)
+      formdata.set("msg_id", data.message_id)
+    if (content)
+      formdata.set("content", content)
+    formdata.set("file_image", new Blob([Buffer.from(file.replace(/^base64:\/\//, ""), "base64")]))
+    return send(formdata)
   }
 
   async sendMsg(data, send, msg) {
     if (!Array.isArray(msg))
       msg = [msg]
-    let message = ""
+    let content = ""
     const msgs = []
     const message_id = []
     const ret = []
     for (let i of msg) {
       if (typeof i != "object")
-        i = { type: "text", data: { text: i } }
-      else if (!i.data)
-        i = { type: i.type, data: { ...i, type: undefined } }
+        i = { type: "text", text: i }
+
       switch (i.type) {
         case "text":
-          message += i.data.text
+          content += i.text
           break
         case "image":
-          ret.push(await this.sendImage(data, send, i.data.file))
+          ret.push(await this.sendImage(data, send, i.file, content))
+          content = ""
           break
         case "face":
-          message += `<emoji:${i.data.id}>`
+          content += `<emoji:${i.id}>`
           break
         case "reply":
-          data.message_id = i.data.id
+          data.message_id = i.id
           break
         case "at":
-          if (i.data.qq == "all")
-            message += "@everyone"
+          if (i.qq == "all")
+            content += "@everyone"
           else
-            message += `<@${i.data.qq.replace(/^qg_/, "")}>`
+            content += `<@${i.qq.replace(/^qg_/, "")}>`
           break
         case "node":
           for (const ret of (await Bot.sendForwardMsg(msg => this.sendMsg(data, send, msg), i.data))) {
@@ -60,11 +62,11 @@ const adapter = new class QQGuildAdapter {
           }
           break
         default:
-          message += JSON.stringify(i)
+          content += JSON.stringify(i)
       }
     }
-    if (message)
-      ret.push(await send({ content: message, msg_id: data.message_id }))
+    if (content)
+      ret.push(await send({ content, msg_id: data.message_id }))
 
     for (const i of ret) {
       msgs.push(i)
