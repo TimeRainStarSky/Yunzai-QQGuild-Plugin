@@ -126,8 +126,8 @@ const adapter = new class QQGuildAdapter {
     for (const guild of (await Bot[id].api.meApi.meGuilds()).data) try {
       for (const channel of (await Bot[id].api.channelApi.channels(guild.id)).data)
         array.push({
-          ...guild,
-          ...channel,
+          guild,
+          channel,
           group_id: `qg_${guild.id}-${channel.id}`,
           group_name: `${guild.name}-${channel.name}`,
         })
@@ -200,8 +200,8 @@ const adapter = new class QQGuildAdapter {
     const channel = (await data.bot.api.channelApi.channel(data.channel_id)).data
     return {
       ...data,
-      ...guild,
-      ...channel,
+      guild,
+      channel,
       group_id: `qg_${guild.id}-${channel.id}`,
       group_name: `${guild.name}-${channel.name}`,
     }
