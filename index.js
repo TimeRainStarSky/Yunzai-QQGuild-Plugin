@@ -8,6 +8,7 @@ const adapter = new class QQGuildAdapter {
   constructor() {
     this.id = "QQGuild"
     this.name = "QQ频道Bot"
+    this.version = `qq-guild-bot-${config.package.dependencies["qq-guild-bot"].replace("^", "v")}`
   }
 
   sendImage(data, send, file, content) {
@@ -421,7 +422,7 @@ const adapter = new class QQGuildAdapter {
       ...(await bot.api.meApi.me()).data,
     }
     if (!bot.info.id) {
-      logger.error(`${logger.blue(`[${token}]`)} ${this.name}(${this.id}) 连接失败`)
+      logger.error(`${logger.blue(`[${token}]`)} ${this.name}(${this.id}) ${this.version} 连接失败`)
       return false
     }
 
@@ -434,7 +435,7 @@ const adapter = new class QQGuildAdapter {
     Bot[id].version = {
       id: this.id,
       name: this.name,
-      version: config.package.dependencies["qq-guild-bot"],
+      version: this.version,
     }
     Bot[id].stat = { start_time: Date.now() / 1000 }
 
@@ -459,7 +460,7 @@ const adapter = new class QQGuildAdapter {
     Bot[id].ws.on("DIRECT_MESSAGE", data => this.message(id, data))
     Bot[id].ws.on("PUBLIC_GUILD_MESSAGES", data => this.message(id, data))
 
-    logger.mark(`${logger.blue(`[${id}]`)} ${this.name}(${this.id}) 已连接`)
+    logger.mark(`${logger.blue(`[${id}]`)} ${this.name}(${this.id}) ${this.version} 已连接`)
     Bot.emit(`connect.${id}`, Bot[id])
     Bot.emit("connect", Bot[id])
     return true
