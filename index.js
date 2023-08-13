@@ -11,18 +11,26 @@ const adapter = new class QQGuildAdapter {
     this.version = `qq-guild-bot-${config.package.dependencies["qq-guild-bot"].replace("^", "v")}`
   }
 
-  sendImage(data, send, file, content) {
-    logger.info(`${logger.blue(`[${data.self_id}]`)} 发送图片：${file.replace(/^base64:\/\/.*/, "base64://...")}`)
-    if (!file.match(/^base64:\/\//))
-      return send({ content, image: file, msg_id: data.message_id })
+  makeContent(content) {
+    return content.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  }
 
-    const formdata = new FormData()
-    if (data.message_id)
-      formdata.set("msg_id", data.message_id)
+  parseContent(content) {
+    return content.replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&amp;/g, "&")
+  }
+
+  makeImage(data, image, content) {
+    logger.info(`${logger.blue(`[${data.self_id}]`)} 发送图片：${image.replace(/^base64:\/\/.*/, "base64://...")}`)
+    if (!image.match(/^base64:\/\//))
+      return { image, content, msg_id: data.message_id }
+
+    const formdata = new FormData
+    formdata.set("file_image", new Blob([Buffer.from(image.replace(/^base64:\/\//, ""), "base64")]))
     if (content)
       formdata.set("content", content)
-    formdata.set("file_image", new Blob([Buffer.from(file.replace(/^base64:\/\//, ""), "base64")]))
-    return send(formdata)
+    if (data.message_id)
+      formdata.set("msg_id", data.message_id)
+    return formdata
   }
 
   async sendMsg(data, send, msg) {
@@ -38,10 +46,10 @@ const adapter = new class QQGuildAdapter {
 
       switch (i.type) {
         case "text":
-          content += i.text
+          content += this.makeContent(i.text)
           break
         case "image":
-          ret.push(await this.sendImage(data, send, i.file, content))
+          ret.push(await send(this.makeImage(data, i.file, content)))
           content = ""
           break
         case "face":
@@ -63,7 +71,7 @@ const adapter = new class QQGuildAdapter {
           }
           break
         default:
-          content += JSON.stringify(i)
+          content += this.makeContent(JSON.stringify(i))
       }
     }
     if (content)
@@ -297,7 +305,7 @@ const adapter = new class QQGuildAdapter {
           const msg = content.split(i)
           const prev_msg = msg.shift()
           if (prev_msg) {
-            data.message.push({ type: "text", text: prev_msg })
+            data.message.push({ type: "text", text: this.parseContent(prev_msg) })
             data.raw_message += prev_msg
           }
           content = msg.join(i)
@@ -307,11 +315,11 @@ const adapter = new class QQGuildAdapter {
           data.raw_message += `[提及：${qq}]`
         }
         if (content) {
-          data.message.push({ type: "text", text: content })
+          data.message.push({ type: "text", text: this.parseContent(content) })
           data.raw_message += content
         }
       } else {
-        data.message.push({ type: "text", text: data.content })
+        data.message.push({ type: "text", text: this.parseContent(data.content) })
         data.raw_message += data.content
       }
     }
