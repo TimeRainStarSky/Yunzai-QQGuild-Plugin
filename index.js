@@ -180,7 +180,7 @@ const adapter = new class QQGuildAdapter {
   }
 
   async getMemberMap(data) {
-    const map = new Map()
+    const map = new Map
     for (const i of (await this.getMemberArray(data)))
       map.set(i.user_id, i)
     return map
@@ -275,6 +275,7 @@ const adapter = new class QQGuildAdapter {
 
   makeMessage(data) {
     data = { ...data, msg: undefined, ...data.msg }
+    data.bot = Bot[data.self_id]
     data.post_type = "message"
     data.user_id = `qg_${data.author.id}`
     data.sender = {
@@ -282,7 +283,6 @@ const adapter = new class QQGuildAdapter {
       nickname: data.author.username,
       avatar: data.author.avatar,
     }
-    data.group_id = `qg_${data.guild_id}-${data.channel_id}`
     data.message_id = data.id
 
     data.message = []
@@ -329,6 +329,7 @@ const adapter = new class QQGuildAdapter {
       data.raw_message += JSON.stringify(i)
     }
 
+    delete data.member
     return data
   }
 
@@ -343,15 +344,15 @@ const adapter = new class QQGuildAdapter {
       channel_id: data.channel_id,
     })
     logger.info(`${logger.blue(`[${data.self_id}]`)} 好友消息：[${data.group_id}, ${data.sender.nickname}(${data.user_id})] ${data.raw_message}`)
-    data.reply = msg => this.sendFriendMsg(data, msg)
 
-    Bot.emit(`${data.post_type}.${data.message_type}`, data)
-    Bot.emit(`${data.post_type}`, data)
+    data.reply = msg => this.sendFriendMsg(data, msg)
+    Bot.em(`${data.post_type}.${data.message_type}`, data)
   }
 
   makeGroupMessage(data) {
     data = this.makeMessage(data)
     data.message_type = "group"
+    data.group_id = `qg_${data.guild_id}-${data.channel_id}`
     data.bot.fl.set(data.user_id, {
       ...data.bot.fl.get(data.user_id),
       ...data.author,
@@ -360,15 +361,13 @@ const adapter = new class QQGuildAdapter {
       source_channel_id: data.channel_id,
     })
     logger.info(`${logger.blue(`[${data.self_id}]`)} 群消息：[${data.group_id}, ${data.sender.nickname}(${data.user_id})] ${data.raw_message}`)
-    data.reply = msg => this.sendGroupMsg(data, msg)
 
-    Bot.emit(`${data.post_type}.${data.message_type}`, data)
-    Bot.emit(`${data.post_type}`, data)
+    data.reply = msg => this.sendGroupMsg(data, msg)
+    Bot.em(`${data.post_type}.${data.message_type}`, data)
   }
 
   message(id, data) {
     data.self_id = id
-    data.bot = Bot[id]
     switch (data.eventType) {
       case "MESSAGE_CREATE":
         this.makeGroupMessage(data)
@@ -447,20 +446,17 @@ const adapter = new class QQGuildAdapter {
     Bot[id].getGroupList = () => this.getGroupList(id)
     Bot[id].getGroupMap = () => this.getGroupMap(id)
 
-    Bot[id].fl = new Map()
-    Bot[id].gl = new Map()
+    Bot[id].fl = new Map
+    Bot[id].gl = new Map
+    Bot[id].gml = new Map
     Bot[id].getGroupMap()
-
-    if (!Bot.uin.includes(id))
-      Bot.uin.push(id)
 
     Bot[id].ws.on("GUILD_MESSAGES", data => this.message(id, data))
     Bot[id].ws.on("DIRECT_MESSAGE", data => this.message(id, data))
     Bot[id].ws.on("PUBLIC_GUILD_MESSAGES", data => this.message(id, data))
 
     logger.mark(`${logger.blue(`[${id}]`)} ${this.name}(${this.id}) ${this.version} 已连接`)
-    Bot.emit(`connect.${id}`, Bot[id])
-    Bot.emit("connect", Bot[id])
+    Bot.em(`connect.${id}`, { self_id: id })
     return true
   }
 
