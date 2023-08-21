@@ -120,7 +120,7 @@ const adapter = new class QQGuildAdapter {
     })
   }
 
-  async recallMsg(data, message_id, hide) {
+  async recallMsg(data, message_id, hide = config.recallHide) {
     logger.info(`${logger.blue(`[${data.self_id}]`)} 撤回消息：[${data.channel_id}] ${message_id}`)
     if (!Array.isArray(message_id))
       message_id = [message_id]

@@ -12,6 +12,7 @@ if (fs.existsSync(configFileOld))
 const config = {
   tips: "",
   permission: "master",
+  recallHide: false,
   token: []
 }
 
