@@ -8,7 +8,7 @@ const adapter = new class QQGuildAdapter {
   constructor() {
     this.id = "QQGuild"
     this.name = "QQ频道Bot"
-    this.version = `qq-guild-bot-${config.package.dependencies["qq-guild-bot"].replace("^", "v")}`
+    this.version = `qq-guild-bot ${config.package.dependencies["qq-guild-bot"].replace("^", "v")}`
   }
 
   makeContent(content) {
@@ -462,8 +462,10 @@ const adapter = new class QQGuildAdapter {
 
   async load() {
     for (const token of config.token)
-      await adapter.connect(token)
-    return true
+      await new Promise(resolve => {
+        adapter.connect(token).then(resolve)
+        setTimeout(resolve, 5000)
+      })
   }
 }
 
