@@ -2,6 +2,7 @@ logger.info(logger.yellow("- 正在加载 QQ频道 适配器插件"))
 
 import { config, configSave } from "./Model/config.js"
 import { FormData, Blob } from "node-fetch"
+import QRCode from "qrcode"
 import { createOpenAPI, createWebsocket } from "qq-guild-bot"
 
 const adapter = new class QQGuildAdapter {
@@ -9,14 +10,11 @@ const adapter = new class QQGuildAdapter {
     this.id = "QQGuild"
     this.name = "QQ频道Bot"
     this.version = `qq-guild-bot ${config.package.dependencies["qq-guild-bot"].replace("^", "v")}`
-  }
 
-  makeContent(content) {
-    return content.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-  }
-
-  parseContent(content) {
-    return content.replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&amp;/g, "&")
+    if (typeof config.toQRCode == "boolean")
+      this.toQRCodeRegExp = config.toQRCode ? /https?:\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&:/~\+#]*[\w\-\@?^=%&/~\+#])?/g : false
+    else
+      this.toQRCodeRegExp = new RegExp(config.toQRCode, "g")
   }
 
   makeImage(data, image, content) {
@@ -33,6 +31,23 @@ const adapter = new class QQGuildAdapter {
     return formdata
   }
 
+  async makeQRCode(data) {
+    return (await QRCode.toDataURL(data)).replace("data:image/png;base64,", "base64://")
+  }
+
+  async makeContent(content, sendImage) {
+    const match = content.match(this.toQRCodeRegExp)
+    if (match) for (const i of match) {
+      await sendImage(await this.makeQRCode(i))
+      content = content.replace(i, "[链接(请扫码查看)]")
+    }
+    return content.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  }
+
+  parseContent(content) {
+    return content.replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&amp;/g, "&")
+  }
+
   async sendMsg(data, send, msg) {
     if (!Array.isArray(msg))
       msg = [msg]
@@ -40,17 +55,21 @@ const adapter = new class QQGuildAdapter {
     const msgs = []
     const message_id = []
     const ret = []
+    const sendImage = async file => {
+      ret.push(await send(this.makeImage(data, file, content)))
+      content = ""
+    }
+
     for (let i of msg) {
       if (typeof i != "object")
         i = { type: "text", text: i }
 
       switch (i.type) {
         case "text":
-          content += this.makeContent(i.text)
+          content += await this.makeContent(i.text, sendImage)
           break
         case "image":
-          ret.push(await send(this.makeImage(data, i.file, content)))
-          content = ""
+          await sendImage(i.file)
           break
         case "face":
           content += `<emoji:${i.id}>`
@@ -71,7 +90,7 @@ const adapter = new class QQGuildAdapter {
           }
           break
         default:
-          content += this.makeContent(JSON.stringify(i))
+          content += await this.makeContent(JSON.stringify(i), sendImage)
       }
     }
     if (content)

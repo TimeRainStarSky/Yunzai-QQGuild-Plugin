@@ -13,6 +13,7 @@ const config = {
   tips: "",
   permission: "master",
   recallHide: false,
+  toQRCode: true,
   token: []
 }
 
