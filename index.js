@@ -432,6 +432,8 @@ const adapter = new class QQGuildAdapter {
     bot.api = createOpenAPI(bot)
     bot.ws = createWebsocket(bot)
     bot.ws.on("ERROR", logger.error)
+    bot.login = () => bot.ws.connect()
+    bot.logout = () => bot.ws.disconnect()
 
     bot.info = {
       ...(await new Promise(resolve => bot.ws.once("READY", data => resolve(data))))?.msg?.user,
@@ -511,21 +513,21 @@ export class QQGuild extends plugin {
     })
   }
 
-  async List() {
-    await this.reply(`共${config.token.length}个账号：\n${config.token.join("\n")}`, true)
+  List() {
+    this.reply(`共${config.token.length}个账号：\n${config.token.join("\n")}`, true)
   }
 
   async Token() {
     const token = this.e.msg.replace(/^#[Qq]+(频道|[Gg]uild)设置/, "").trim()
     if (config.token.includes(token)) {
       config.token = config.token.filter(item => item != token)
-      await this.reply(`账号已删除，重启后生效，共${config.token.length}个账号`, true)
+      this.reply(`账号已删除，重启后生效，共${config.token.length}个账号`, true)
     } else {
       if (await adapter.connect(token)) {
         config.token.push(token)
-        await this.reply(`账号已连接，共${config.token.length}个账号`, true)
+        this.reply(`账号已连接，共${config.token.length}个账号`, true)
       } else {
-        await this.reply(`账号连接失败`, true)
+        this.reply(`账号连接失败`, true)
         return false
       }
     }
