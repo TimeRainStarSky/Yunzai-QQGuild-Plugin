@@ -14,6 +14,7 @@ const config = {
   permission: "master",
   recallHide: false,
   toQRCode: true,
+  bot: {},
   token: []
 }
 

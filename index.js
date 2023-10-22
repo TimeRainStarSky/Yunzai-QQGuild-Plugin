@@ -424,6 +424,7 @@ const adapter = new class QQGuildAdapter {
       intents.push("PUBLIC_GUILD_MESSAGES", "OPEN_FORUMS_EVENT")
 
     const bot = {
+      ...config.bot,
       appID: token[2],
       token: token[3],
       intents,
