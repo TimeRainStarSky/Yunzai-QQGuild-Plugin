@@ -14,7 +14,7 @@ const config = {
   permission: "master",
   recallHide: false,
   toQRCode: true,
-  bot: {},
+  bot: { maxRetry: Infinity },
   token: []
 }
 
