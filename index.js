@@ -18,12 +18,16 @@ const adapter = new class QQGuildAdapter {
   }
 
   makeImage(data, image, content) {
-    logger.info(`${logger.blue(`[${data.self_id}]`)} 发送图片：${image.replace(/^base64:\/\/.*/, "base64://...")}`)
-    if (!image.match(/^base64:\/\//))
+    image = Bot.Buffer(image, { http: true })
+    if (Buffer.isBuffer(image)) {
+      Bot.makeLog("info", `发送图片：(Buffer)`, data.self_id)
+    } else {
+      Bot.makeLog("info", `发送图片：${image}`, data.self_id)
       return { image, content, msg_id: data.message_id }
+    }
 
     const formdata = new FormData
-    formdata.set("file_image", new Blob([Buffer.from(image.replace(/^base64:\/\//, ""), "base64")]))
+    formdata.set("file_image", new Blob([image]))
     if (content)
       formdata.set("content", content)
     if (data.message_id)
@@ -121,14 +125,14 @@ const adapter = new class QQGuildAdapter {
     }
 
     return this.sendMsg(data, msg => {
-      logger.info(`${logger.blue(`[${data.self_id}]`)} 发送好友消息：[${data.guild_id}, ${data.user_id}] ${JSON.stringify(msg)}`)
+      Bot.makeLog("info", `发送好友消息：[${data.guild_id}, ${data.user_id}] ${JSON.stringify(msg)}`, data.self_id)
       return data.bot.api.directMessageApi.postDirectMessage(data.guild_id, msg)
     }, msg)
   }
 
   sendGroupMsg(data, msg) {
     return this.sendMsg(data, msg => {
-      logger.info(`${logger.blue(`[${data.self_id}]`)} 发送群消息：[${data.channel_id}] ${JSON.stringify(msg)}`)
+      Bot.makeLog("info", `发送群消息：[${data.channel_id}] ${JSON.stringify(msg)}`, data.self_id)
       return data.bot.api.messageApi.postMessage(data.channel_id, msg)
     }, msg)
   }
@@ -140,7 +144,7 @@ const adapter = new class QQGuildAdapter {
   }
 
   async recallMsg(data, message_id, hide = config.recallHide) {
-    logger.info(`${logger.blue(`[${data.self_id}]`)} 撤回消息：[${data.channel_id}] ${message_id}`)
+    Bot.makeLog("info", `撤回消息：[${data.channel_id}] ${message_id}`, data.self_id)
     if (!Array.isArray(message_id))
       message_id = [message_id]
     const msgs = []
@@ -362,7 +366,7 @@ const adapter = new class QQGuildAdapter {
       guild_id: data.guild_id,
       channel_id: data.channel_id,
     })
-    logger.info(`${logger.blue(`[${data.self_id}]`)} 好友消息：[${data.group_id}, ${data.sender.nickname}(${data.user_id})] ${data.raw_message}`)
+    Bot.makeLog("info", `好友消息：[${data.group_id}, ${data.sender.nickname}(${data.user_id})] ${data.raw_message}`, data.self_id)
 
     data.reply = msg => this.sendFriendMsg(data, msg)
     Bot.em(`${data.post_type}.${data.message_type}`, data)
@@ -379,7 +383,7 @@ const adapter = new class QQGuildAdapter {
       source_guild_id: data.guild_id,
       source_channel_id: data.channel_id,
     })
-    logger.info(`${logger.blue(`[${data.self_id}]`)} 群消息：[${data.group_id}, ${data.sender.nickname}(${data.user_id})] ${data.raw_message}`)
+    Bot.makeLog("info", `群消息：[${data.group_id}, ${data.sender.nickname}(${data.user_id})] ${data.raw_message}`, data.self_id)
 
     data.reply = msg => this.sendGroupMsg(data, msg)
     Bot.em(`${data.post_type}.${data.message_type}`, data)
