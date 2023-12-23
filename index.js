@@ -93,6 +93,8 @@ const adapter = new class QQGuildAdapter {
             message_id.push(...ret.message_id)
           }
           break
+        case "button":
+          continue
         default:
           content += await this.makeContent(JSON.stringify(i), sendImage)
       }
