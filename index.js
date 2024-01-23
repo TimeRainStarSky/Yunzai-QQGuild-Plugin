@@ -80,6 +80,7 @@ const adapter = new class QQGuildAdapter {
           break
         case "reply":
           data.message_id = i.id
+          data.message_reference = { message_id: i.id }
           break
         case "at":
           if (i.qq == "all")
@@ -100,7 +101,11 @@ const adapter = new class QQGuildAdapter {
       }
     }
     if (content)
-      ret.push(await send({ content, msg_id: data.message_id }))
+      ret.push(await send({
+        content,
+        msg_id: data.message_id,
+        message_reference: data.message_reference,
+      }))
 
     for (const i of ret) {
       msgs.push(i)

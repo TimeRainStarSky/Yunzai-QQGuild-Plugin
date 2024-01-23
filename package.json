@@ -3,7 +3,7 @@
   "type": "module",
   "author": "TimeRainStarSky",
   "dependencies": {
-    "axios": "^1.6.2",
+    "axios": "^1.6.5",
     "qq-guild-bot": "^2.9.5",
     "qrcode": "^1.5.3"
   }
