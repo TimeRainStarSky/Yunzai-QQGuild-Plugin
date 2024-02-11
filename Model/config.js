@@ -3,12 +3,6 @@ import YAML from "yaml"
 import _ from "lodash"
 
 const configFile = "config/QQGuild.yaml"
-const configSave = config => fs.writeFileSync(configFile, YAML.stringify({ ...config, package: undefined }), "utf-8")
-
-const configFileOld = "plugins/QQGuild-Plugin/config.yaml"
-if (fs.existsSync(configFileOld))
-  fs.renameSync(configFileOld, configFile)
-
 const config = {
   tips: "",
   permission: "master",
@@ -17,6 +11,7 @@ const config = {
   bot: { maxRetry: Infinity },
   token: []
 }
+const configSave = () => fs.writeFileSync(configFile, YAML.stringify({ ...config, package: undefined }), "utf-8")
 
 let configData
 

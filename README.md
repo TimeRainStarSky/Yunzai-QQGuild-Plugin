@@ -13,6 +13,10 @@ TRSS-Yunzai QQ频道 Bot 适配器 插件
 
 </div>
 
+## 停更提醒
+
+建议迁移到 [QQBot](../../../Yunzai-QQBot-Plugin)
+
 ## 安装教程
 
 1. 准备：[TRSS-Yunzai](../../../Yunzai)

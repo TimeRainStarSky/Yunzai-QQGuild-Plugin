@@ -543,7 +543,7 @@ export class QQGuild extends plugin {
         return false
       }
     }
-    configSave(config)
+    configSave()
   }
 }
 
