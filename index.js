@@ -1,15 +1,29 @@
 logger.info(logger.yellow("- 正在加载 QQ频道 适配器插件"))
 
-import { config, configSave } from "./Model/config.js"
+import makeConfig from "../../lib/plugins/config.js"
 import { FormData, Blob } from "node-fetch"
 import QRCode from "qrcode"
 import { createOpenAPI, createWebsocket } from "qq-guild-bot"
+
+const { config, configSave } = await makeConfig("QQGuild", {
+  tips: "",
+  permission: "master",
+  recallHide: false,
+  toQRCode: true,
+  bot: { maxRetry: Infinity },
+  token: [],
+}, {
+  tips: [
+    "欢迎使用 TRSS-Yunzai QQGuild Plugin ! 作者：时雨🌌星空",
+    "参考：https://github.com/TimeRainStarSky/Yunzai-QQGuild-Plugin",
+  ],
+})
 
 const adapter = new class QQGuildAdapter {
   constructor() {
     this.id = "QQGuild"
     this.name = "QQ频道Bot"
-    this.version = `qq-guild-bot ${config.package.dependencies["qq-guild-bot"].replace("^", "v")}`
+    this.version = `qq-guild-bot v2.9.5`
 
     if (typeof config.toQRCode == "boolean")
       this.toQRCodeRegExp = config.toQRCode ? /https?:\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&:/~\+#]*[\w\-\@?^=%&/~\+#])?/g : false
@@ -17,8 +31,8 @@ const adapter = new class QQGuildAdapter {
       this.toQRCodeRegExp = new RegExp(config.toQRCode, "g")
   }
 
-  makeImage(data, image, content) {
-    image = Bot.Buffer(image, { http: true })
+  async makeImage(data, image, content) {
+    image = await Bot.Buffer(image, { http: true })
     if (Buffer.isBuffer(image)) {
       Bot.makeLog("info", `发送图片：(Buffer)`, data.self_id)
     } else {
@@ -60,7 +74,7 @@ const adapter = new class QQGuildAdapter {
     const message_id = []
     const ret = []
     const sendImage = async file => {
-      ret.push(await send(this.makeImage(data, file, content)))
+      ret.push(await send(await this.makeImage(data, file, content)))
       content = ""
     }
 
@@ -543,7 +557,7 @@ export class QQGuild extends plugin {
         return false
       }
     }
-    configSave()
+    await configSave()
   }
 }
 
