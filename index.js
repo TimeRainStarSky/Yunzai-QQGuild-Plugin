@@ -3,6 +3,7 @@ logger.info(logger.yellow("- 正在加载 QQ频道 适配器插件"))
 import makeConfig from "../../lib/plugins/config.js"
 import { FormData, Blob } from "node-fetch"
 import QRCode from "qrcode"
+import urlRegexSafe from "url-regex-safe"
 import { createOpenAPI, createWebsocket } from "qq-guild-bot"
 
 const { config, configSave } = await makeConfig("QQGuild", {
@@ -25,10 +26,17 @@ const adapter = new class QQGuildAdapter {
     this.name = "QQ频道Bot"
     this.version = `qq-guild-bot v2.9.5`
 
-    if (typeof config.toQRCode == "boolean")
-      this.toQRCodeRegExp = config.toQRCode ? /https?:\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&:/~\+#]*[\w\-\@?^=%&/~\+#])?/g : false
-    else
-      this.toQRCodeRegExp = new RegExp(config.toQRCode, "g")
+    switch (typeof config.toQRCode) {
+      case "boolean":
+        this.toQRCodeRegExp = config.toQRCode ? urlRegexSafe() : false
+        break
+      case "string":
+        this.toQRCodeRegExp = new RegExp(config.toQRCode, "g")
+        break
+      case "object":
+        this.toQRCodeRegExp = urlRegexSafe(config.toQRCode)
+        break
+    }
   }
 
   async makeImage(data, image, content) {
@@ -79,7 +87,7 @@ const adapter = new class QQGuildAdapter {
     }
 
     for (let i of msg) {
-      if (typeof i != "object")
+      if (typeof i !== "object")
         i = { type: "text", text: i }
 
       switch (i.type) {
@@ -97,10 +105,10 @@ const adapter = new class QQGuildAdapter {
           data.message_reference = { message_id: i.id }
           break
         case "at":
-          if (i.qq == "all")
+          if (i.qq === "all")
             content += "@everyone"
           else
-            content += `<@${i.qq.replace(/^qg_/, "")}>`
+            content += `<@${i.qq?.replace?.(/^qg_/, "")}>`
           break
         case "node":
           for (const ret of (await Bot.sendForwardMsg(msg => this.sendMsg(data, send, msg), i.data))) {
@@ -132,7 +140,7 @@ const adapter = new class QQGuildAdapter {
   async sendFriendMsg(data, msg) {
     if (!data.guild_id) {
       if (!data.source_guild_id) {
-        logger.error(`${logger.blue(`[${data.self_id}]`)} 发送好友消息失败：[${data.user_id}] 不存在来源频道信息`)
+        Bot.makeLog("error", `发送好友消息失败：[${data.user_id}] 不存在来源频道信息`, data.self_id)
         return false
       }
 
@@ -185,7 +193,7 @@ const adapter = new class QQGuildAdapter {
           group_name: `${guild.name}-${channel.name}`,
         })
     } catch (err) {
-      logger.error(`获取频道列表错误：${logger.red(JSON.stringify(err))}`)
+      Bot.makeLog("error", ["获取频道列表错误", err], id)
     }
     return array
   }
@@ -261,6 +269,8 @@ const adapter = new class QQGuildAdapter {
   }
 
   pickFriend(id, user_id) {
+    if (typeof user_id !== "string")
+      user_id = String(user_id)
     const i = {
       ...Bot[id].fl.get(user_id),
       self_id: id,
@@ -278,6 +288,10 @@ const adapter = new class QQGuildAdapter {
   }
 
   pickMember(id, group_id, user_id) {
+    if (typeof group_id !== "string")
+      group_id = String(group_id)
+    if (typeof user_id !== "string")
+      user_id = String(user_id)
     const guild_id = group_id.replace(/^qg_/, "").split("-")
     const i = {
       ...Bot[id].fl.get(user_id),
@@ -296,6 +310,8 @@ const adapter = new class QQGuildAdapter {
   }
 
   pickGroup(id, group_id) {
+    if (typeof group_id !== "string")
+      group_id = String(group_id)
     const guild_id = group_id.replace(/^qg_/, "").split("-")
     const i = {
       ...Bot[id].gl.get(group_id),
@@ -466,7 +482,7 @@ const adapter = new class QQGuildAdapter {
       ...(await bot.api.meApi.me()).data,
     }
     if (!bot.info.id) {
-      logger.error(`${logger.blue(`[${token}]`)} ${this.name}(${this.id}) ${this.version} 连接失败`)
+      Bot.makeLog("error", `${this.name}(${this.id}) ${this.version} 连接失败`, token)
       return false
     }
 
@@ -502,17 +518,14 @@ const adapter = new class QQGuildAdapter {
     Bot[id].ws.on("DIRECT_MESSAGE", data => this.message(id, data))
     Bot[id].ws.on("PUBLIC_GUILD_MESSAGES", data => this.message(id, data))
 
-    logger.mark(`${logger.blue(`[${id}]`)} ${this.name}(${this.id}) ${this.version} 已连接`)
+    Bot.makeLog("mark", `${this.name}(${this.id}) ${this.version} 已连接`, id)
     Bot.em(`connect.${id}`, { self_id: id })
     return true
   }
 
   async load() {
     for (const token of config.token)
-      await new Promise(resolve => {
-        adapter.connect(token).then(resolve)
-        setTimeout(resolve, 5000)
-      })
+      await Bot.sleep(5000, this.connect(token))
   }
 }
 
@@ -546,7 +559,7 @@ export class QQGuild extends plugin {
   async Token() {
     const token = this.e.msg.replace(/^#[Qq]+(频道|[Gg]uild)设置/, "").trim()
     if (config.token.includes(token)) {
-      config.token = config.token.filter(item => item != token)
+      config.token = config.token.filter(item => item !== token)
       this.reply(`账号已删除，重启后生效，共${config.token.length}个账号`, true)
     } else {
       if (await adapter.connect(token)) {

@@ -3,8 +3,9 @@
   "type": "module",
   "author": "TimeRainStarSky",
   "dependencies": {
-    "axios": "^1.6.7",
+    "axios": "^1.7.2",
     "qq-guild-bot": "^2.9.5",
-    "qrcode": "^1.5.3"
+    "qrcode": "^1.5.3",
+    "url-regex-safe": "^4.0.0"
   }
 }
